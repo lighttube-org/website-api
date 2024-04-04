@@ -3,6 +3,10 @@ using System.Net.Mail;
 using System.Net.Security;
 using System.Text;
 using System.Web;
+using JWT;
+using JWT.Algorithms;
+using JWT.Builder;
+using JWT.Serializers;
 
 namespace LightTubeProjectApi;
 
@@ -16,6 +20,15 @@ public class MailManager
 		DeliveryMethod = SmtpDeliveryMethod.Network,
 		EnableSsl = true
 	};
+
+	private string jwtKey = Environment.GetEnvironmentVariable("LIGHTTUBEAPI_UNSUBSCRIBE_URL")!;
+	private static readonly IJwtAlgorithm Algorithm = new HMACSHA256Algorithm();
+	private static readonly IBase64UrlEncoder UrlEncoder = new JwtBase64UrlEncoder();
+	private static readonly IJsonSerializer Serializer = new SystemTextSerializer();
+	private static readonly IDateTimeProvider Provider = new UtcDateTimeProvider();
+	private static readonly IJwtValidator Validator = new JwtValidator(Serializer, Provider);
+	private static readonly IJwtEncoder Encoder = new JwtEncoder(Algorithm, Serializer, UrlEncoder);
+	private static readonly IJwtDecoder Decoder = new JwtDecoder(Serializer, Validator, UrlEncoder, Algorithm);
 
 	public async Task SendMail(string to, string subject, string body)
 	{
@@ -31,10 +44,30 @@ public class MailManager
 		await client.SendMailAsync(message);
 	}
 
-	public string GetListUnsubscribe(string email) =>
-		Environment.GetEnvironmentVariable("LIGHTTUBEAPI_UNSUBSCRIBE_URL") + "?email=" +
-		HttpUtility.UrlEncode(Convert.ToBase64String(Encoding.UTF8.GetBytes(email)));
+	public string GetListUnsubscribe(string email)
+	{
+		
+		Dictionary<string, object> payload = new()
+		{
+			{ "iat", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() },
+			{ "sub", email }
+		};
+		return Environment.GetEnvironmentVariable("LIGHTTUBEAPI_UNSUBSCRIBE_URL") + "?email=" +
+		       HttpUtility.UrlEncode(Encoder.Encode(payload, jwtKey));
+	}
 
-	public string DecodeListUnsubscribeEmail(string encoded) =>
-		Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+	public string? DecodeListUnsubscribeEmail(string encoded)
+	{
+		try
+		{
+			string json = Decoder.Decode(encoded, jwtKey)!;
+			Dictionary<string, object> deserialize =
+				(Dictionary<string, object>)Serializer.Deserialize(typeof(Dictionary<string, object>), json);
+			return (string)deserialize["sub"];
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
 }
