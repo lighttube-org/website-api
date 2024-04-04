@@ -3,4 +3,4 @@ bin/
 obj/
 .vscode
 .vs
-LightTube/Properties/launchSettings.json
+launchSettings.json
