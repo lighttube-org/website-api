@@ -4,7 +4,7 @@ namespace LightTubeProjectApi.Controllers;
 
 [AdminActionFilter]
 [Route("admin")]
-public class AdminController(DatabaseContext database, MailManager mailManager) : ControllerBase
+public class AdminController(DatabaseContext database, MailManager mailManager, WebhookManager webhookManager) : ControllerBase
 {
 	[Route("instances/pending")]
 	public DatabaseInstance[] GetPendingInstances() => database.Instances.Where(x => !x.Approved).ToArray();
@@ -36,6 +36,7 @@ public class AdminController(DatabaseContext database, MailManager mailManager) 
 			message =
 				$"Instance approved, but failed to send an e-mail to `{instance.AuthorEmail}`.\n{e.GetType().FullName} {e.Message}";
 		}
+		await webhookManager.SendInstanceApprovedMessage(instance.Host);
 
 		return Ok(message);
 	}
@@ -60,6 +61,7 @@ public class AdminController(DatabaseContext database, MailManager mailManager) 
 			message =
 				$"Instance removed, but failed to send an e-mail to `{instance.AuthorEmail}`.\n{e.GetType().FullName} {e.Message}";
 		}
+		await webhookManager.SendInstanceRemovedMessage(instance.Host);
 
 		return Ok(message);
 	}

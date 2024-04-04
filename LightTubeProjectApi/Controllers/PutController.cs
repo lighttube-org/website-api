@@ -6,7 +6,7 @@ using Serilog;
 namespace LightTubeProjectApi.Controllers;
 
 [Route("/put")]
-public class PutController(DatabaseContext database, MailManager mailManager) : ControllerBase
+public class PutController(DatabaseContext database, WebhookManager webhookManager) : ControllerBase
 {
 	private HttpClient client = new();
 
@@ -89,6 +89,8 @@ public class PutController(DatabaseContext database, MailManager mailManager) : 
 			await Response.WriteAsync("Failed to update instance info");
 			return;
 		}
+
+		await webhookManager.SendInstanceCreatedMessage(uri.Host);
 
 		DatabaseInstance? entity = new();
 		entity.Host = uri.Host;

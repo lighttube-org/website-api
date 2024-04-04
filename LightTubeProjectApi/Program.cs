@@ -15,6 +15,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddSerilog();
 builder.Services.AddSingleton<MailManager>();
+builder.Services.AddSingleton<WebhookManager>();
 builder.Services.AddDbContext<DatabaseContext>();
 
 #pragma warning disable ASP0000
