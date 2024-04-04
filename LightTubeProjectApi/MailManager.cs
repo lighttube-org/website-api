@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Net.Security;
 using System.Text;
+using System.Web;
 
 namespace LightTubeProjectApi;
 
@@ -32,5 +33,8 @@ public class MailManager
 
 	public string GetListUnsubscribe(string email) =>
 		Environment.GetEnvironmentVariable("LIGHTTUBEAPI_UNSUBSCRIBE_URL") + "?email=" +
-		Convert.ToBase64String(Encoding.UTF8.GetBytes(email));
+		HttpUtility.UrlEncode(Convert.ToBase64String(Encoding.UTF8.GetBytes(email)));
+
+	public string DecodeListUnsubscribeEmail(string encoded) =>
+		Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
 }

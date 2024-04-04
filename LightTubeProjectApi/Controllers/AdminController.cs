@@ -17,6 +17,12 @@ public class AdminController(DatabaseContext database, MailManager mailManager) 
 
 		instance.Approved = true;
 		database.Instances.Update(instance);
+		if (await database.Emails.FindAsync(instance.AuthorEmail) == null)
+			database.Emails.Add(new DatabaseEmail
+			{
+				Email = instance.AuthorEmail,
+				Flags = DatabaseEmail.EmailFlags.LIGHTTUBE_UPDATES
+			});
 		await database.SaveChangesAsync();
 
 		string message = "Approved instance!";
