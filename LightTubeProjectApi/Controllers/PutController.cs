@@ -136,11 +136,12 @@ public class PutController(DatabaseContext database, WebhookManager webhookManag
 			database.Instances.Add(entity);
 			await database.SaveChangesAsync();
 		}
-		catch (Exception)
+		catch (Exception e)
 		{
 			Response.StatusCode = 400;
 			await Response.StartAsync();
 			await Response.WriteAsync("Failed to save the instance to the database.");
+			await webhookManager.SendErrorMessage("/put/instance", e);
 			return;
 		}
 
