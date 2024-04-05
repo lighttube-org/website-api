@@ -48,19 +48,39 @@ public class PutController(DatabaseContext database, WebhookManager webhookManag
 			return;
 		}
 
-		LibreCaptchaResponse? captcha = await client.GetFromJsonAsync<LibreCaptchaResponse>(
-			Environment.GetEnvironmentVariable("LIGHTTUBEAPI_LIBRECAPTCHA_URL") + "/v2/answer");
-		if (captcha == null)
+		try
 		{
-			Response.StatusCode = 400;
-			await Response.StartAsync();
-			return;
-		}
+			HttpRequestMessage req = new(HttpMethod.Post, Environment.GetEnvironmentVariable("LIGHTTUBEAPI_LIBRECAPTCHA_URL") + "/v2/answer");
+			Dictionary<string, string> captchaParams = new()
+			{
+				["id"] = body.CaptchaId,
+				["answer"] = body.CaptchaAnswer
+			};
+			req.Content = new StringContent(JsonSerializer.Serialize(captchaParams));
+			HttpResponseMessage captchaRes = await client.SendAsync(req);
+			LibreCaptchaResponse? captcha = JsonSerializer.Deserialize<LibreCaptchaResponse>(await captchaRes.Content.ReadAsStringAsync());
 
-		if (captcha.Result != "True")
+			if (captcha == null)
+			{
+				Response.StatusCode = 400;
+				await Response.StartAsync();
+				await Response.WriteAsync("Failed to verify captcha");
+				return;
+			}
+
+			if (captcha.Result != "True")
+			{
+				Response.StatusCode = 400;
+				await Response.StartAsync();
+				await Response.WriteAsync("Invalid captcha");
+				return;
+			}
+		}
+		catch (Exception)
 		{
 			Response.StatusCode = 400;
 			await Response.StartAsync();
+			await Response.WriteAsync("Failed to verify captcha");
 			return;
 		}
 
