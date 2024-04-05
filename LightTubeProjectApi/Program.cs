@@ -14,6 +14,11 @@ Log.Logger = loggerConfiguration.CreateLogger();
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddSerilog();
+builder.Services.AddCors(options =>
+	options.AddPolicy("CorsPolicy", policyBuilder => policyBuilder
+		.AllowAnyHeader()
+		.AllowAnyMethod()
+		.AllowAnyOrigin()));
 builder.Services.AddSingleton<MailManager>();
 builder.Services.AddSingleton<WebhookManager>();
 builder.Services.AddDbContext<DatabaseContext>();
@@ -29,6 +34,7 @@ Log.Information("Database migrated");
 
 WebApplication app = builder.Build();
 app.UseSerilogRequestLogging();
+app.UseCors("CorsPolicy");
 app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
