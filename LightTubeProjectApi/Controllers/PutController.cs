@@ -97,6 +97,15 @@ public class PutController(DatabaseContext database, WebhookManager webhookManag
 			return;
 		}
 
+		DatabaseInstance? instance = database.Instances.Find(uri.Host);
+		if (instance != null)
+		{
+			Response.StatusCode = 400;
+			await Response.StartAsync();
+			await Response.WriteAsync("Instance already exists in the list.");
+			return;
+		}
+
 		LightTubeInstanceInfo lightTubeInstanceInfo;
 		try
 		{
@@ -110,22 +119,35 @@ public class PutController(DatabaseContext database, WebhookManager webhookManag
 			return;
 		}
 
-		await webhookManager.SendInstanceCreatedMessage(uri.Host);
+		try
+		{
+			// this is separated to find out which one is broken
+			// object initializer just gives the line number of new() when something breaks
+			DatabaseInstance entity = new();
+			entity.Host = uri.Host;
+			entity.AuthorEmail = body.AuthorEmail;
+			entity.Country = body.Country;
+			entity.Scheme = uri.Scheme;
+			entity.IsCloudflare = body.IsCloudflare;
+			entity.ApiEnabled = lightTubeInstanceInfo!.AllowsApi;
+			entity.ProxyEnabled = lightTubeInstanceInfo.AllowsThirdPartyProxyUsage ? "all" : "local";
+			entity.AccountsEnabled = lightTubeInstanceInfo.AllowsNewUsers;
+			entity.Approved = false;
+			database.Instances.Add(entity);
+			await database.SaveChangesAsync();
+		}
+		catch (Exception)
+		{
+			Response.StatusCode = 400;
+			await Response.StartAsync();
+			await Response.WriteAsync("Failed to save the instance to the database.");
+			return;
+		}
 
-		DatabaseInstance? entity = new();
-		entity.Host = uri.Host;
-		entity.AuthorEmail = body.AuthorEmail;
-		entity.Country = body.Country;
-		entity.Scheme = uri.Scheme;
-		entity.IsCloudflare = body.IsCloudflare;
-		entity.ApiEnabled = lightTubeInstanceInfo!.AllowsApi;
-		entity.ProxyEnabled = lightTubeInstanceInfo.AllowsThirdPartyProxyUsage ? "all" : "local";
-		entity.AccountsEnabled = lightTubeInstanceInfo.AllowsNewUsers;
-		entity.Approved = false;
-		database.Instances.Add(entity);
-		await database.SaveChangesAsync();
+		await webhookManager.SendInstanceCreatedMessage(uri.Host);
 
 		Response.StatusCode = 200;
 		await Response.StartAsync();
+		await Response.WriteAsync("Submitted your instance to the list! It will appear as soon as a human approves it manually.");
 	}
 }
