@@ -5,6 +5,7 @@ namespace LightTubeProjectApi;
 public class WebhookManager
 {
 	private string url = Environment.GetEnvironmentVariable("LIGHTTUBEAPI_DISCORD_WEBHOOK")!;
+	private string publicUrl = Environment.GetEnvironmentVariable("LIGHTTUBEAPI_DISCORD_PUBLIC_WEBHOOK")!;
 	private HttpClient client = new();
 
 	private async Task SendWebhook(string title, string message, int tries = 0)
@@ -47,5 +48,28 @@ public class WebhookManager
 	{
 		await SendWebhook($":no_entry: Exception in `{path}`",
 			$"**{e.GetType().FullName}:** {e.Message}\n{string.Join('\n', (e.StackTrace ?? "").Split("\n").Where(x => x.Contains("LightTube")))}");
+	}
+
+	public async Task PublishWebhook(string content, int tries = 0)
+	{
+		if (tries >= 5) return;
+		try
+		{
+			HttpRequestMessage req = new(HttpMethod.Post, publicUrl + "?wait=true");
+			req.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+			{
+				["content"] = content
+			});
+
+			HttpResponseMessage httpResponseMessage = await client.SendAsync(req);
+			Log.Information("Webhook sent: " + httpResponseMessage.StatusCode);
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine($"Failed to send webhook, retrying (attempt {tries + 1} of 5)");
+			Console.WriteLine(e);
+			await Task.Delay(1000);
+			await PublishWebhook(content, tries + 1);
+		}
 	}
 }

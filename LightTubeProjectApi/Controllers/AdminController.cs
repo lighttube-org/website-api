@@ -117,4 +117,47 @@ public class AdminController(DatabaseContext database, MailManager mailManager, 
 
 		return Ok(message);
 	}
+
+	[Route("announce")]
+	public async Task<IActionResult> Announce([FromForm] string? title = null, [FromForm] string? body = null)
+	{
+		if (title == null)
+			return BadRequest("title cant be null");
+		if (body == null)
+			return BadRequest("body cant be null");
+		
+		Dictionary<string, bool> receiveStatuses = new();
+		try
+		{
+			await webhookManager.PublishWebhook(
+				$"< @&1080558298425729135> **{title}**\n\n{body}	\n-# Testing webhooks, ignore this message");
+			receiveStatuses.Add("webhook@discord.com", true);
+		}
+		catch (Exception)
+		{
+			receiveStatuses.Add("webhook@discord.com", false);
+		}
+
+		DatabaseEmail[] emails = database.Emails
+			.Where(x => x.Flags.HasFlag(DatabaseEmail.EmailFlags.LIGHTTUBE_UPDATES)).ToArray();
+		Console.WriteLine($"Emailing {emails.Length} people...");
+		Task[] enumerable = emails.Select(async x =>
+		{
+			try
+			{
+				await mailManager.SendMail(x.Email, title, body);
+				Console.WriteLine($"Sent announcement email to {x.Email}...");
+				receiveStatuses.Add(x.Email, true);
+			}
+			catch (Exception e)
+			{
+				receiveStatuses.Add(x.Email, false);
+				Console.WriteLine($"Failed to send announcement email to {x.Email}...");
+				Console.WriteLine(e);
+			}
+		}).ToArray();
+		Task.WaitAll(enumerable);
+		
+		return Ok(receiveStatuses);
+	}
 }
