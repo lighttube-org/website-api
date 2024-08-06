@@ -130,7 +130,7 @@ public class AdminController(DatabaseContext database, MailManager mailManager, 
 		try
 		{
 			await webhookManager.PublishWebhook(
-				$"< @&1080558298425729135> **{title}**\n\n{body}");
+				$"<@&1080558298425729135> **{title}**\n\n{body}");
 			receiveStatuses.Add("webhook@discord.com", true);
 		}
 		catch (Exception)
